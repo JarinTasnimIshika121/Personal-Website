@@ -273,6 +273,21 @@ footer a{color:var(--muted)} footer a:hover{color:var(--accent)}
   .reader{left:16px;right:16px;bottom:16px;justify-content:center}
   .r-status{display:none}
 }
+/* ---------- unfinished / not-yet-linked ---------- */
+.btn-unfinished{
+  background:var(--chip)!important;color:var(--faint)!important;
+  border-color:transparent!important;cursor:not-allowed;
+  opacity:.75;box-shadow:none!important;transform:none!important;
+}
+.btn-unfinished:hover{background:var(--chip)!important;color:var(--faint)!important;transform:none!important;box-shadow:none!important}
+.link-card.unfinished{cursor:not-allowed;opacity:.6}
+.link-card.unfinished:hover{border-color:var(--border);transform:none;box-shadow:none}
+.link-card.unfinished:hover .lc-ico{background:var(--accent-soft);color:var(--accent)}
+.link-card.unfinished .lc-arrow{opacity:.35}
+.avatar.static{cursor:default;border-style:solid;border-color:var(--border)}
+.avatar.static:hover{transform:none;border-color:var(--border);background:none}
+.avatar.static .av-inner{display:none}
+
 </style>
 </head>
 <body>
@@ -396,6 +411,13 @@ footer a{color:var(--muted)} footer a:hover{color:var(--accent)}
    Nothing below the "END OF SITE DATA" marker needs to be touched.
    ========================================================================== */
 
+/* SHOW_UNFINISHED
+   true  = buttons that have no real link yet are shown, greyed out and unclickable.
+           Useful while you are still filling things in.
+   false = those buttons disappear entirely. SET THIS TO false BEFORE PUBLISHING,
+           so visitors never see a button that does nothing.                      */
+const SHOW_UNFINISHED = true;
+
 const SITE = {
 
   /* ---------- Basic details ---------- */
@@ -406,7 +428,8 @@ const SITE = {
     university: "University of North Texas",
     tagline:    "I study complex, ill-defined challenges faced by specific populations — characterizing and formalizing those problems, then designing, prototyping, and evaluating solutions grounded in that understanding.",
     email:      "jarintasnimishika@my.unt.edu",
-    cvFile:     "#",              // put your CV PDF link here
+    photo:      "",               // e.g. "photo.jpg" once you add the file to the repo
+    cvFile:     "",               // e.g. "cv.pdf" once you add the file to the repo
     footer:     "© 2026 Jarin Tasnim Ishika"
   },
 
@@ -508,8 +531,7 @@ const SITE = {
        type:"rows"  -> year on the left, title + subtitle on the right
        type:"chips" -> label on the left, tag list on the right             */
   cvButtons: [
-    { label:"Download PDF", url:"#", style:"primary", icon:"download" },
-    { label:"View full CV", url:"#", style:"outline", icon:"chevron"  }
+    { label:"Download PDF", url:"", style:"primary", icon:"download" }
   ],
 
   cv: [
@@ -590,19 +612,30 @@ const ICONS = {
   external:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 17L17 7M7 7h10v10"/></svg>'
 };
 const ico = n => ICONS[n] || '';
-const ext = u => (u && u !== '#' && !u.startsWith('mailto:') && !u.startsWith('#')) ? ' target="_blank" rel="noopener"' : '';
 const $ = id => document.getElementById(id);
 
+/* A link "works" if it has a real destination — not empty, not a bare "#". */
+const live = u => !!u && u.trim() !== '' && u.trim() !== '#';
+const ext  = u => (live(u) && !u.startsWith('mailto:') && !u.startsWith('#')) ? ' target="_blank" rel="noopener"' : '';
+
 function btn(l, size){
-  const cls = 'btn btn-' + (l.style || 'outline') + (size ? ' ' + size : '');
-  return `<a href="${l.url}" class="${cls}"${ext(l.url)}>${l.iconFirst&&l.icon?ico(l.icon):''}${l.label}${!l.iconFirst&&l.icon?ico(l.icon):''}</a>`;
+  const inner = `${l.iconFirst&&l.icon?ico(l.icon):''}${l.label}${!l.iconFirst&&l.icon?ico(l.icon):''}`;
+  const sz = size ? ' ' + size : '';
+  if(!live(l.url)){
+    if(!SHOW_UNFINISHED) return '';
+    return `<span class="btn btn-unfinished${sz}" aria-disabled="true" title="No link added yet">${inner}</span>`;
+  }
+  return `<a href="${l.url}" class="btn btn-${l.style||'outline'}${sz}"${ext(l.url)}>${inner}</a>`;
 }
 
 /* nav */
 $('navLinks').innerHTML = SITE.nav.map((n,i)=>
   `<li><a href="${n.href}"${i===0?' class="active"':''}>${n.label}</a></li>`).join('');
-$('navSocial').innerHTML = SITE.navSocial.map(s=>
-  `<a class="btn btn-icon" title="${s.title}" href="${s.url}"${ext(s.url)}>${ico(s.icon)}</a>`).join('');
+$('navSocial').innerHTML = SITE.navSocial.filter(s=>live(s.url)||SHOW_UNFINISHED).map(s=>
+  live(s.url)
+    ? `<a class="btn btn-icon" title="${s.title}" href="${s.url}"${ext(s.url)}>${ico(s.icon)}</a>`
+    : `<span class="btn btn-icon btn-unfinished" title="${s.title} — no link added yet" aria-disabled="true">${ico(s.icon)}</span>`
+).join('');
 
 /* hero */
 const p = SITE.profile;
@@ -613,7 +646,7 @@ $('heroText').innerHTML = `
   <p class="hero-blurb">${p.tagline}</p>
   <div class="btn-row">
     <a href="#research" class="btn btn-primary">Let's get started${ico('chevron')}</a>
-    <a href="${p.cvFile}" class="btn btn-outline">${ico('download')}Download CV</a>
+    ${btn({label:'Download CV', url:p.cvFile, style:'outline', icon:'download', iconFirst:true})}
     <a href="mailto:${p.email}" class="btn btn-soft">${ico('mail')}Email me</a>
   </div>`;
 $('footText').textContent = p.footer;
@@ -680,21 +713,33 @@ $('blogList').innerHTML = SITE.blog.map(b=>`
   <div class="post">
     <div class="post-date">${b.date}</div>
     <div class="post-title">${b.title}${b.external?'<span class="badge">External</span>':''}</div>
-    <a href="${b.url}" class="btn btn-outline btn-sm"${ext(b.url)}>Read${ico(b.external?'external':'chevron')}</a>
+    ${btn({label:'Read', url:b.url, style:'outline', icon:b.external?'external':'chevron'},'btn-sm')}
   </div>`).join('');
 
 /* contact */
 $('touchLead').textContent = SITE.contactLead;
-$('linkGrid').innerHTML = SITE.contactLinks.map(l=>`
-  <a href="${l.url}" class="link-card"${ext(l.url)}>
-    <span class="lc-ico">${ico(l.icon)}</span>
+$('linkGrid').innerHTML = SITE.contactLinks.filter(l=>live(l.url)||SHOW_UNFINISHED).map(l=>{
+  const body = `<span class="lc-ico">${ico(l.icon)}</span>
     <span><span class="lc-label">${l.label}</span><span class="lc-val">${l.value}</span></span>
-    <span class="lc-arrow">${ico('external')}</span>
-  </a>`).join('');
+    <span class="lc-arrow">${ico('external')}</span>`;
+  return live(l.url)
+    ? `<a href="${l.url}" class="link-card"${ext(l.url)}>${body}</a>`
+    : `<span class="link-card unfinished" aria-disabled="true" title="No link added yet">${body}</span>`;
+}).join('');
 
-/* ---------- avatar upload placeholder ---------- */
+/* ---------- profile photo ----------
+   If profile.photo is set, the real image is shown and the upload box is gone.
+   If it is empty, you get a click-to-preview placeholder (local preview only). */
 (function(){
   const box=$('avatar'), inp=$('avFile'), img=$('avImg');
+  if(live(SITE.profile.photo)){
+    img.src = SITE.profile.photo;
+    box.classList.add('filled','static');
+    box.setAttribute('aria-hidden','true');
+    box.setAttribute('tabindex','-1');
+    box.title = '';
+    return;
+  }
   box.onclick=()=>inp.click();
   inp.onchange=e=>{
     const f=e.target.files[0]; if(!f) return;
